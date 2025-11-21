@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PokéClicker TCG - Set Update</title>
+    <title>PokéClicker TCG - Mode Hors Ligne</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -25,11 +25,11 @@
             </div>
             
             <div class="booster-controls">
-                <label>SÉLECTION DU SET :</label>
+                <label>EXTENSION ACTUELLE :</label>
                 <select id="set-selector">
-                    <option value="sv8">Étincelles Déferlantes (ME2)</option>
+                    <option value="sv8">Étincelles Déferlantes (250 Cartes)</option>
                 </select>
-                <div id="set-info">250+ Cartes • Nov 2024</div>
+                <div id="set-info">Généré localement • Pas d'internet requis</div>
             </div>
         </div>
         
@@ -41,15 +41,9 @@
     </div>
 
     <div class="collection-container">
-        <h3 class="collection-title">Ta Collection (Set SV8)</h3>
+        <h3 class="collection-title">Ta Collection (SV8)</h3>
         <div class="collection-grid" id="grid"></div>
     </div>
 
     <div id="overlay" class="hidden">
-        <div id="active-card-container"></div>
-        <div id="tap-hint">Touche pour la carte suivante</div>
-    </div>
-
-    <script src="script.js"></script>
-</body>
-</html>
+        <div id="active-card
