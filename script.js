@@ -1,9 +1,13 @@
 // --- VARIABLES ---
 let coins = 0;
 let price = 50;
-let myCards = []; // Ta collection
+let myCards = []; 
 
-// Variables temporaires pour l'ouverture
+// --- CONFIGURATION DES SETS ---
+// On définit le set actuel sur 'sv8' (Surging Sparks / Étincelles Déferlantes)
+let currentSetId = 'sv8'; 
+
+// Variables temporaires
 let cardsToReveal = []; 
 let currentCardIndex = 0;
 
@@ -15,25 +19,29 @@ const grid = document.getElementById('grid');
 const feedback = document.getElementById('feedback');
 const pokeballBtn = document.getElementById('pokeball-btn');
 const debugBtn = document.getElementById('debug-btn');
-
-// Zone d'animation
 const overlay = document.getElementById('overlay');
 const activeCardContainer = document.getElementById('active-card-container');
 const tapHint = document.getElementById('tap-hint');
+const setSelector = document.getElementById('set-selector');
 
 // --- EVENTS ---
 pokeballBtn.addEventListener('click', clickBall);
 shopBtn.addEventListener('click', buyBooster);
 
-// Debug / Triche
+// Gestion du changement de set (Pour le futur)
+setSelector.addEventListener('change', (e) => {
+    currentSetId = e.target.value;
+    // Ici on pourrait changer le visuel du booster en CSS
+    alert("Set changé pour : " + currentSetId);
+});
+
 if(debugBtn) {
     debugBtn.addEventListener('click', () => {
         coins += 10000;
         updateUI();
         saveGame();
-        feedback.innerText = "TRICHE ACTIVÉE ! 🤑";
+        feedback.innerText = "TRICHE: +10K 💰";
         feedback.style.color = "red";
-        setTimeout(() => feedback.style.color = "#666", 2000);
     });
 }
 
@@ -44,12 +52,21 @@ function saveGame() {
 }
 
 function loadGame() {
+    // --- RESET DEMANDÉ --- 
+    // Si tu veux vraiment tout supprimer à chaque rechargement, laisse la ligne suivante.
+    // Sinon, supprime la ligne 'localStorage.clear()' une fois le reset fait.
+    
+    // localStorage.clear(); // <--- LIGNE QUI RESET TOUT (À utiliser une fois)
+
     const saved = localStorage.getItem('pokeClickerSave');
     if (saved) {
         const data = JSON.parse(saved);
         coins = data.coins;
         price = data.price;
         myCards = data.cards || [];
+        
+        // Affichage
+        grid.innerHTML = '';
         [...myCards].reverse().forEach(url => createCardElement(url, false));
     }
     updateUI();
@@ -62,11 +79,10 @@ function updateUI() {
     
     if (coins >= price) {
         shopBtn.classList.add('active');
-        shopBtn.innerText = `OUVRIR BOOSTER\n(5 Cartes - ${price} 💰)`;
+        shopBtn.innerText = `ACHETER BOOSTER\n(Set SV8 - ${price} 💰)`;
     } else {
         shopBtn.classList.remove('active');
-        const missing = price - coins;
-        shopBtn.innerText = `Manque ${missing} 💰\n(Prix: ${price})`;
+        shopBtn.innerText = `Manque ${price - coins} 💰`;
     }
 }
 
@@ -80,98 +96,98 @@ function clickBall() {
     saveGame();
 }
 
-// --- OUVERTURE BOOSTER (NOUVELLE LOGIQUE) ---
+// --- ACHAT BOOSTER (CIBLÉ SUR LE SET SV8) ---
 async function buyBooster() {
     if (coins < price) return;
 
-    // 1. Payer
     coins -= price;
-    price += 15;
+    // Le prix n'augmente plus pour simplifier le test du nouveau set
+    // price += 15; 
     updateUI();
     saveGame();
 
-    shopBtn.innerText = "Recherche des cartes...";
+    shopBtn.innerText = "Génération du booster...";
     shopBtn.classList.remove('active');
 
     try {
-        // 2. Récupérer les 5 cartes (4 communes + 1 rare)
-        const randomPage = Math.floor(Math.random() * 100) + 1;
-        
-        const [commonReq, rareReq] = await Promise.all([
-            fetch(`https://api.pokemontcg.io/v2/cards?page=${randomPage}&pageSize=4`),
-            fetch(`https://api.pokemontcg.io/v2/cards?pageSize=1&q=rarity:"Rare Holo" OR rarity:"Rare Ultra" OR rarity:V OR rarity:VMAX`)
-        ]);
+        // ON CIBLE UNIQUEMENT LE SET 'sv8' (Surging Sparks)
+        // Il y a environ 200+ cartes. On prend une page au hasard pour varier.
+        // 250 cartes / 5 par page = 50 pages max.
+        const randomPage = Math.floor(Math.random() * 40) + 1;
 
-        const commonData = await commonReq.json();
-        const rareData = await rareReq.json();
+        // Requête ciblée sur le set
+        const req = await fetch(`https://api.pokemontcg.io/v2/cards?q=set.id:${currentSetId}&page=${randomPage}&pageSize=5`);
+        const res = await req.json();
         
-        let newPack = [];
-        if (commonData.data) newPack = [...commonData.data];
-        if (rareData.data) newPack.push(rareData.data[0]);
+        if (res.data && res.data.length > 0) {
+            let newPack = res.data;
 
-        if (newPack.length > 0) {
-            // 3. Lancer la session de révélation
+            // TRI STRATÉGIQUE :
+            // On trie les cartes par PV (HP) pour mettre la plus forte à la fin (la Rare)
+            newPack.sort((a, b) => {
+                const hpA = parseInt(a.hp) || 0;
+                const hpB = parseInt(b.hp) || 0;
+                return hpA - hpB; // La plus forte sera la dernière
+            });
+
             startRevealSession(newPack);
         } else {
-            alert("Erreur: Paquet vide");
+            alert("Erreur: Pas de cartes trouvées dans ce set.");
+            updateUI();
         }
 
     } catch (e) {
         console.error(e);
-        feedback.innerText = "Erreur réseau";
-        updateUI(); // Remet le bouton normal
+        feedback.innerText = "Erreur API";
+        alert("Erreur de connexion au serveur Pokémon.");
+        updateUI();
     }
 }
 
-// --- GESTION DE LA RÉVÉLATION (UNE PAR UNE) ---
+// --- RÉVÉLATION (Focus une par une) ---
 function startRevealSession(cards) {
     cardsToReveal = cards;
     currentCardIndex = 0;
-    
-    // Ouvrir l'overlay
     overlay.classList.remove('hidden');
-    activeCardContainer.innerHTML = ''; // Nettoyer
-    tapHint.innerText = "Touche la carte pour voir la suivante";
-    
-    // Afficher la première carte
+    activeCardContainer.innerHTML = '';
+    tapHint.innerText = "Touche la carte pour découvrir la suivante";
     showNextCard();
 }
 
 function showNextCard() {
-    // Si on a tout montré, on ferme
     if (currentCardIndex >= cardsToReveal.length) {
         closeOverlay();
-        feedback.innerText = "Toutes les cartes collectées !";
+        feedback.innerText = "Booster terminé !";
         return;
     }
 
     const cardData = cardsToReveal[currentCardIndex];
-    const isRare = (currentCardIndex === cardsToReveal.length - 1); // La dernière est rare
+    const isLast = (currentCardIndex === cardsToReveal.length - 1);
 
-    // Créer l'élément visuel GRANDE carte
     const cardEl = document.createElement('div');
     cardEl.className = 'large-reveal-card';
-    if (isRare) cardEl.classList.add('rare');
+    if (isLast) cardEl.classList.add('rare');
     
-    // On utilise l'image HD pour le gros plan
-    cardEl.style.backgroundImage = `url('${cardData.images.large}')`;
+    // On essaie d'avoir l'image HD
+    const imgUrl = cardData.images.large || cardData.images.small;
+    cardEl.style.backgroundImage = `url('${imgUrl}')`;
 
-    // Événement : Quand on clique sur la carte
     cardEl.onclick = function() {
-        // 1. Animation de sortie (vers le haut)
         cardEl.classList.add('slide-up');
         
-        // 2. Ajouter la carte à la collection (sauvegarde)
+        // Sauvegarde
         myCards.unshift(cardData.images.small);
         createCardElement(cardData.images.small, true);
         saveGame();
 
-        // 3. Attendre la fin de l'anim (0.4s) puis passer à la suivante
+        // Transition
         setTimeout(() => {
-            activeCardContainer.removeChild(cardEl); // Supprimer l'ancienne
-            currentCardIndex++; // Passer à la suivante
-            showNextCard(); // Afficher la suivante
-        }, 350); 
+            if(cardEl.parentNode === activeCardContainer) {
+                activeCardContainer.removeChild(cardEl);
+            }
+            currentCardIndex++;
+            showNextCard();
+        }, 300); 
     };
 
     activeCardContainer.appendChild(cardEl);
@@ -182,7 +198,6 @@ function closeOverlay() {
     updateUI();
 }
 
-// Création visuelle dans la collection (en bas)
 function createCardElement(url, isNew) {
     const div = document.createElement('div');
     div.className = 'card';
@@ -193,5 +208,8 @@ function createCardElement(url, isNew) {
     else grid.appendChild(div);
 }
 
-// Lancer le jeu
+// Pour forcer le reset au premier lancement de cette version :
+// Décommente la ligne ci-dessous, lance le jeu une fois, puis recommente-la.
+// localStorage.clear();
+
 loadGame();
