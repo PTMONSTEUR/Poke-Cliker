@@ -3,11 +3,11 @@ let coins = 0;
 let price = 50;
 let myCards = []; 
 
-// --- CONFIGURATION DES SETS ---
-// On définit le set actuel sur 'sv8' (Surging Sparks / Étincelles Déferlantes)
+// --- CONFIGURATION ---
+// Set actuel : Étincelles Déferlantes (SV8)
 let currentSetId = 'sv8'; 
 
-// Variables temporaires
+// Variables d'animation
 let cardsToReveal = []; 
 let currentCardIndex = 0;
 
@@ -28,13 +28,12 @@ const setSelector = document.getElementById('set-selector');
 pokeballBtn.addEventListener('click', clickBall);
 shopBtn.addEventListener('click', buyBooster);
 
-// Gestion du changement de set (Pour le futur)
+// Changement de set (Prêt pour le futur)
 setSelector.addEventListener('change', (e) => {
     currentSetId = e.target.value;
-    // Ici on pourrait changer le visuel du booster en CSS
-    alert("Set changé pour : " + currentSetId);
 });
 
+// Bouton Triche
 if(debugBtn) {
     debugBtn.addEventListener('click', () => {
         coins += 10000;
@@ -42,6 +41,7 @@ if(debugBtn) {
         saveGame();
         feedback.innerText = "TRICHE: +10K 💰";
         feedback.style.color = "red";
+        setTimeout(() => feedback.style.color = "#666", 2000);
     });
 }
 
@@ -52,12 +52,6 @@ function saveGame() {
 }
 
 function loadGame() {
-    // --- RESET DEMANDÉ --- 
-    // Si tu veux vraiment tout supprimer à chaque rechargement, laisse la ligne suivante.
-    // Sinon, supprime la ligne 'localStorage.clear()' une fois le reset fait.
-    
-    // localStorage.clear(); // <--- LIGNE QUI RESET TOUT (À utiliser une fois)
-
     const saved = localStorage.getItem('pokeClickerSave');
     if (saved) {
         const data = JSON.parse(saved);
@@ -65,7 +59,6 @@ function loadGame() {
         price = data.price;
         myCards = data.cards || [];
         
-        // Affichage
         grid.innerHTML = '';
         [...myCards].reverse().forEach(url => createCardElement(url, false));
     }
@@ -96,61 +89,74 @@ function clickBall() {
     saveGame();
 }
 
-// --- ACHAT BOOSTER (CIBLÉ SUR LE SET SV8) ---
+// --- ACHAT BOOSTER OPTIMISÉ (RAPIDE) ---
 async function buyBooster() {
     if (coins < price) return;
 
+    // 1. Paiement
     coins -= price;
-    // Le prix n'augmente plus pour simplifier le test du nouveau set
-    // price += 15; 
     updateUI();
     saveGame();
 
-    shopBtn.innerText = "Génération du booster...";
+    shopBtn.innerText = "Ouverture...";
     shopBtn.classList.remove('active');
 
     try {
-        // ON CIBLE UNIQUEMENT LE SET 'sv8' (Surging Sparks)
-        // Il y a environ 200+ cartes. On prend une page au hasard pour varier.
-        // 250 cartes / 5 par page = 50 pages max.
-        const randomPage = Math.floor(Math.random() * 40) + 1;
+        // OPTIMISATION VITESSE :
+        // Le set SV8 a environ 190-200 cartes.
+        // 5 cartes par page = env 40 pages.
+        // Pour éviter de tomber sur une page vide (ce qui prend du temps), on limite à 35.
+        const maxPageSafe = 35; 
+        const randomPage = Math.floor(Math.random() * maxPageSafe) + 1;
 
-        // Requête ciblée sur le set
-        const req = await fetch(`https://api.pokemontcg.io/v2/cards?q=set.id:${currentSetId}&page=${randomPage}&pageSize=5`);
+        // On lance la requête
+        // On utilise Promise.race pour limiter le temps d'attente à 5 secondes max
+        const fetchPromise = fetch(`https://api.pokemontcg.io/v2/cards?q=set.id:${currentSetId}&page=${randomPage}&pageSize=5`);
+        
+        // Timer de sécurité (si ça bug, on annule au bout de 5s)
+        const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Timeout')), 5000)
+        );
+
+        const req = await Promise.race([fetchPromise, timeoutPromise]);
         const res = await req.json();
         
         if (res.data && res.data.length > 0) {
             let newPack = res.data;
 
-            // TRI STRATÉGIQUE :
-            // On trie les cartes par PV (HP) pour mettre la plus forte à la fin (la Rare)
+            // Tri pour mettre la plus forte à la fin (la Rare)
             newPack.sort((a, b) => {
                 const hpA = parseInt(a.hp) || 0;
                 const hpB = parseInt(b.hp) || 0;
-                return hpA - hpB; // La plus forte sera la dernière
+                return hpA - hpB;
             });
 
             startRevealSession(newPack);
         } else {
-            alert("Erreur: Pas de cartes trouvées dans ce set.");
+            // Si la page est vide (très rare maintenant), on rembourse
+            alert("Erreur technique (Page vide), réessaie !");
+            coins += price; // Remboursement
             updateUI();
         }
 
     } catch (e) {
         console.error(e);
-        feedback.innerText = "Erreur API";
-        alert("Erreur de connexion au serveur Pokémon.");
+        feedback.innerText = "Trop lent...";
+        alert("La connexion est trop lente. Réessaie !");
+        coins += price; // Remboursement
         updateUI();
     }
 }
 
-// --- RÉVÉLATION (Focus une par une) ---
+// --- RÉVÉLATION ---
 function startRevealSession(cards) {
     cardsToReveal = cards;
     currentCardIndex = 0;
+    
     overlay.classList.remove('hidden');
     activeCardContainer.innerHTML = '';
     tapHint.innerText = "Touche la carte pour découvrir la suivante";
+    
     showNextCard();
 }
 
@@ -168,14 +174,15 @@ function showNextCard() {
     cardEl.className = 'large-reveal-card';
     if (isLast) cardEl.classList.add('rare');
     
-    // On essaie d'avoir l'image HD
     const imgUrl = cardData.images.large || cardData.images.small;
     cardEl.style.backgroundImage = `url('${imgUrl}')`;
 
+    // Interaction au clic
     cardEl.onclick = function() {
+        // Animation
         cardEl.classList.add('slide-up');
         
-        // Sauvegarde
+        // Ajout collection
         myCards.unshift(cardData.images.small);
         createCardElement(cardData.images.small, true);
         saveGame();
@@ -187,7 +194,7 @@ function showNextCard() {
             }
             currentCardIndex++;
             showNextCard();
-        }, 300); 
+        }, 250); // Transition un peu plus rapide (0.25s)
     };
 
     activeCardContainer.appendChild(cardEl);
@@ -207,9 +214,5 @@ function createCardElement(url, isNew) {
     if (grid.firstChild) grid.insertBefore(div, grid.firstChild);
     else grid.appendChild(div);
 }
-
-// Pour forcer le reset au premier lancement de cette version :
-// Décommente la ligne ci-dessous, lance le jeu une fois, puis recommente-la.
-// localStorage.clear();
 
 loadGame();
