@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>PokéClicker TCG</title>
-    
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -18,16 +17,18 @@
 
     <div class="click-zone">
         <button id="pokeball-btn"></button>
-        
         <div id="feedback">Clique pour gagner !</div>
-        
         <button id="shop-btn">Booster (50 💰)</button>
     </div>
 
     <div class="collection-container">
         <h3 class="collection-title">Ta Collection</h3>
-        <div class="collection-grid" id="grid">
-            </div>
+        <div class="collection-grid" id="grid"></div>
+    </div>
+
+    <div id="overlay" class="hidden">
+        <div id="booster-pack"></div>
+        <div id="revealed-card"></div>
     </div>
 
     <script src="script.js"></script>
