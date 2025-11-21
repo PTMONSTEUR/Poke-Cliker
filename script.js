@@ -3,9 +3,39 @@ let coins = 0;
 let price = 50;
 let myCards = []; 
 
-// --- CONFIGURATION ---
-// Set actuel : Étincelles Déferlantes (SV8)
-let currentSetId = 'sv8'; 
+// --- BASE DE DONNÉES LOCALE (GÉNÉRÉE AUTOMATIQUEMENT) ---
+// Ceci crée la liste des 252 cartes du set SV8 instantanément
+const sv8_database = [];
+
+for (let i = 1; i <= 252; i++) {
+    let rarity = "Common";
+    let name = `Carte #${i}`;
+    
+    // Définition approximative des raretés selon le numéro
+    if (i > 191) rarity = "Secret Rare"; 
+    else if (i > 170) rarity = "Ultra Rare";
+    else if (i > 150) rarity = "Rare Holo";
+
+    // Quelques cartes Stars du set pour l'affichage
+    if (i === 57 || i === 219 || i === 238 || i === 247) { name = "Pikachu ex"; rarity = "Double Rare"; }
+    if (i === 240) name = "Hydreigon ex";
+    if (i === 237) name = "Milotic ex";
+    if (i === 239) name = "Latias ex";
+    if (i === 242) name = "Alolan Exeggutor ex";
+
+    sv8_database.push({
+        id: `sv8-${i}`,
+        name: name,
+        rarity: rarity,
+        // C'est ICI que l'on récupère l'image officielle HD
+        images: {
+            small: `https://images.pokemontcg.io/sv8/${i}.png`,
+            large: `https://images.pokemontcg.io/sv8/${i}_hires.png`
+        },
+        // Simulation des PV pour le tri (Les rares à la fin)
+        hp: (rarity.includes("Rare") ? 200 : 60)
+    });
+}
 
 // Variables d'animation
 let cardsToReveal = []; 
@@ -27,11 +57,6 @@ const setSelector = document.getElementById('set-selector');
 // --- EVENTS ---
 pokeballBtn.addEventListener('click', clickBall);
 shopBtn.addEventListener('click', buyBooster);
-
-// Changement de set (Prêt pour le futur)
-setSelector.addEventListener('change', (e) => {
-    currentSetId = e.target.value;
-});
 
 // Bouton Triche
 if(debugBtn) {
@@ -72,7 +97,7 @@ function updateUI() {
     
     if (coins >= price) {
         shopBtn.classList.add('active');
-        shopBtn.innerText = `ACHETER BOOSTER\n(Set SV8 - ${price} 💰)`;
+        shopBtn.innerText = `ACHETER BOOSTER\n(SV8 - ${price} 💰)`;
     } else {
         shopBtn.classList.remove('active');
         shopBtn.innerText = `Manque ${price - coins} 💰`;
@@ -89,8 +114,8 @@ function clickBall() {
     saveGame();
 }
 
-// --- ACHAT BOOSTER OPTIMISÉ (RAPIDE) ---
-async function buyBooster() {
+// --- ACHAT BOOSTER (100% LOCAL & INSTANTANÉ) ---
+function buyBooster() {
     if (coins < price) return;
 
     // 1. Paiement
@@ -98,57 +123,27 @@ async function buyBooster() {
     updateUI();
     saveGame();
 
-    shopBtn.innerText = "Ouverture...";
-    shopBtn.classList.remove('active');
-
-    try {
-        // OPTIMISATION VITESSE :
-        // Le set SV8 a environ 190-200 cartes.
-        // 5 cartes par page = env 40 pages.
-        // Pour éviter de tomber sur une page vide (ce qui prend du temps), on limite à 35.
-        const maxPageSafe = 35; 
-        const randomPage = Math.floor(Math.random() * maxPageSafe) + 1;
-
-        // On lance la requête
-        // On utilise Promise.race pour limiter le temps d'attente à 5 secondes max
-        const fetchPromise = fetch(`https://api.pokemontcg.io/v2/cards?q=set.id:${currentSetId}&page=${randomPage}&pageSize=5`);
-        
-        // Timer de sécurité (si ça bug, on annule au bout de 5s)
-        const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Timeout')), 5000)
-        );
-
-        const req = await Promise.race([fetchPromise, timeoutPromise]);
-        const res = await req.json();
-        
-        if (res.data && res.data.length > 0) {
-            let newPack = res.data;
-
-            // Tri pour mettre la plus forte à la fin (la Rare)
-            newPack.sort((a, b) => {
-                const hpA = parseInt(a.hp) || 0;
-                const hpB = parseInt(b.hp) || 0;
-                return hpA - hpB;
-            });
-
-            startRevealSession(newPack);
-        } else {
-            // Si la page est vide (très rare maintenant), on rembourse
-            alert("Erreur technique (Page vide), réessaie !");
-            coins += price; // Remboursement
-            updateUI();
-        }
-
-    } catch (e) {
-        console.error(e);
-        feedback.innerText = "Trop lent...";
-        alert("La connexion est trop lente. Réessaie !");
-        coins += price; // Remboursement
-        updateUI();
+    // 2. GÉNÉRATION DU BOOSTER (Sans internet)
+    // On pioche 5 cartes au hasard dans notre base de données locale
+    let newPack = [];
+    for (let i = 0; i < 5; i++) {
+        const randomIndex = Math.floor(Math.random() * sv8_database.length);
+        newPack.push(sv8_database[randomIndex]);
     }
+
+    // 3. TRI (Mise en scène)
+    // On met les cartes "Rares" à la fin du paquet pour le suspense
+    newPack.sort((a, b) => {
+        let scoreA = (a.rarity.includes("Rare")) ? 10 : 1;
+        let scoreB = (b.rarity.includes("Rare")) ? 10 : 1;
+        return scoreA - scoreB;
+    });
+
+    // 4. Lancement immédiat de l'animation
+    startRevealSession(newPack);
 }
 
-// --- RÉVÉLATION ---
+// --- RÉVÉLATION (Une par une) ---
 function startRevealSession(cards) {
     cardsToReveal = cards;
     currentCardIndex = 0;
@@ -179,22 +174,19 @@ function showNextCard() {
 
     // Interaction au clic
     cardEl.onclick = function() {
-        // Animation
         cardEl.classList.add('slide-up');
         
-        // Ajout collection
         myCards.unshift(cardData.images.small);
         createCardElement(cardData.images.small, true);
         saveGame();
 
-        // Transition
         setTimeout(() => {
             if(cardEl.parentNode === activeCardContainer) {
                 activeCardContainer.removeChild(cardEl);
             }
             currentCardIndex++;
             showNextCard();
-        }, 250); // Transition un peu plus rapide (0.25s)
+        }, 250); 
     };
 
     activeCardContainer.appendChild(cardEl);
