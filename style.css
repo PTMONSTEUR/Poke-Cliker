@@ -78,7 +78,7 @@ header::after {
     transition: 0.3s;
     box-shadow: 0 4px #888;
     max-width: 80%;
-    white-space: pre-wrap; /* Permet le retour à la ligne si besoin */
+    white-space: pre-wrap; /* Permet le retour à la ligne */
 }
 #shop-btn.active {
     background-color: #3b4cca;
@@ -117,7 +117,7 @@ header::after {
     animation: popIn 0.3s ease-out;
     position: relative;
 }
-/* Petit badge 'New' pour les nouvelles cartes */
+/* Petit badge "NEW" sur les nouvelles cartes */
 .card.new::after {
     content: 'NEW';
     position: absolute;
@@ -129,11 +129,11 @@ header::after {
 
 @keyframes popIn { from { transform: scale(0); } to { transform: scale(1); } }
 
-/* --- ANIMATION OVERLAY (POCKET STYLE) --- */
+/* --- ANIMATION OVERLAY (Le Booster) --- */
 #overlay {
     position: fixed;
     top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.95);
+    background: rgba(0,0,0,0.95); /* Fond très sombre */
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -143,11 +143,10 @@ header::after {
 }
 .hidden { opacity: 0; pointer-events: none; }
 
-/* DESIGN DU BOOSTER (Texture métallique) */
 #booster-pack {
     width: 220px;
     height: 320px;
-    /* Effet Foil brillant */
+    /* Effet foil métallique avec des rayures */
     background: repeating-linear-gradient(
         120deg,
         #1a2a8a,
@@ -162,7 +161,6 @@ header::after {
     box-shadow: 0 0 40px rgba(255, 255, 255, 0.5);
     display: none;
     position: relative;
-    display: flex;
     align-items: center;
     justify-content: center;
 }
@@ -179,13 +177,14 @@ header::after {
 
 #booster-pack.shaking {
     display: flex;
-    animation: shake 0.1s infinite; /* Secousse très rapide */
+    animation: shake 0.1s infinite;
 }
 #booster-pack.opening {
-    animation: ripOpen 0.4s forwards; /* Ouverture style éclatement */
+    /* Ouverture très rapide (0.15s) */
+    animation: ripOpen 0.15s forwards; 
 }
 
-/* CONTIENT LES 5 CARTES RÉVÉLÉES */
+/* Conteneur des cartes révélées */
 #reveal-container {
     display: flex;
     flex-wrap: wrap;
@@ -201,18 +200,18 @@ header::after {
     background-size: cover;
     border-radius: 8px;
     box-shadow: 0 0 15px rgba(255,215,0,0.5);
-    transform: scale(0); /* Caché au début */
-    animation: dealCard 0.4s ease-out forwards;
+    transform: scale(0);
+    animation: dealCard 0.3s ease-out forwards; 
 }
 
-/* La dernière carte (Rare) brille plus et est plus grande */
+/* La carte Rare est plus grande et dorée */
 .reveal-card-slot.rare {
     width: 120px;
     height: 165px;
     border: 2px solid gold;
     box-shadow: 0 0 30px gold;
     z-index: 10;
-    order: 10; /* Affiche en dernier si flex wrap */
+    order: 10;
 }
 
 #tap-hint {
@@ -220,7 +219,7 @@ header::after {
     display: none;
 }
 
-/* ANIMATIONS */
+/* --- DEFINITION DES ANIMATIONS --- */
 @keyframes shake {
     0% { transform: rotate(1deg); }
     50% { transform: rotate(-1deg); }
