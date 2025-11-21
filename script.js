@@ -1,9 +1,9 @@
-// --- VARIABLES DU JEU ---
+// --- VARIABLES ---
 let coins = 0;
 let price = 50;
-let myCards = []; // On stocke les cartes ici pour la sauvegarde
+let myCards = [];
 
-// --- ÉLÉMENTS HTML ---
+// --- ÉLÉMENTS ---
 const walletEl = document.getElementById('wallet');
 const countEl = document.getElementById('count');
 const shopBtn = document.getElementById('shop-btn');
@@ -11,132 +11,140 @@ const grid = document.getElementById('grid');
 const feedback = document.getElementById('feedback');
 const pokeballBtn = document.getElementById('pokeball-btn');
 
-// --- ÉCOUTEURS D'ÉVÉNEMENTS ---
+// Éléments d'animation
+const overlay = document.getElementById('overlay');
+const boosterPack = document.getElementById('booster-pack');
+const revealedCard = document.getElementById('revealed-card');
+
+// --- EVENTS ---
 pokeballBtn.addEventListener('click', clickBall);
 shopBtn.addEventListener('click', buyBooster);
 
-// --- FONCTIONS DE SAUVEGARDE (Le Cerveau) ---
+// Au clic sur l'overlay, on le ferme si une carte est affichée
+overlay.addEventListener('click', () => {
+    if (revealedCard.style.display === 'block') {
+        closeOverlay();
+    }
+});
 
+// --- SAUVEGARDE ---
 function saveGame() {
-    const gameData = {
-        coins: coins,
-        price: price,
-        cards: myCards
-    };
-    // On transforme l'objet en texte pour le navigateur
-    localStorage.setItem('pokeClickerSave', JSON.stringify(gameData));
+    const data = { coins, price, cards: myCards };
+    localStorage.setItem('pokeClickerSave', JSON.stringify(data));
 }
 
 function loadGame() {
     const saved = localStorage.getItem('pokeClickerSave');
     if (saved) {
         const data = JSON.parse(saved);
-        
-        // On remet les valeurs
         coins = data.coins;
         price = data.price;
-        myCards = data.cards || []; // Sécurité si vide
-
-        // On réaffiche toutes les cartes sauvegardées
-        myCards.forEach(cardImage => {
-            createCardElement(cardImage);
-        });
+        myCards = data.cards || [];
+        myCards.forEach(url => createCardElement(url, false)); // False = pas d'anim au chargement
     }
     updateUI();
 }
 
-// --- LOGIQUE DU JEU ---
-
+// --- LOGIQUE ---
 function updateUI() {
     walletEl.innerText = `💰 ${coins}`;
     countEl.innerText = `🃏 ${myCards.length}`;
     
     if (coins >= price) {
         shopBtn.classList.add('active');
-        shopBtn.innerText = `Ouvrir un Booster (${price} 💰)`;
+        shopBtn.innerText = `Ouvrir Booster (${price} 💰)`;
     } else {
         shopBtn.classList.remove('active');
-        shopBtn.innerText = `Besoin de ${price} 💰`;
+        shopBtn.innerText = `Manque ${price - coins} 💰`;
     }
 }
 
 function clickBall() {
-    const gain = Math.floor(Math.random() * 3) + 1; 
+    const gain = Math.floor(Math.random() * 3) + 1;
     coins += gain;
-    
-    // Feedback visuel
     feedback.style.color = '#3b4cca';
     feedback.innerText = `+${gain}`;
-    setTimeout(() => feedback.innerText = "", 500);
-
+    setTimeout(() => feedback.innerText = "Clique !", 500);
     updateUI();
-    saveGame(); // Sauvegarde auto
+    saveGame();
 }
 
+// --- LA FONCTION D'ANIMATION ---
 async function buyBooster() {
     if (coins < price) return;
 
+    // 1. Payer
     coins -= price;
-    price += 15; 
+    price += 10; // Inflation
     updateUI();
-    saveGame(); // Sauvegarde l'achat tout de suite
+    saveGame();
 
-    shopBtn.classList.remove('active');
-    shopBtn.innerText = "Chargement...";
-    feedback.innerText = "Appel au Centre Pokémon...";
+    // 2. Lancer l'animation (Écran noir + Booster qui tremble)
+    overlay.classList.remove('hidden');
+    overlay.style.pointerEvents = 'all';
+    boosterPack.style.display = 'block';
+    boosterPack.classList.add('shaking');
+    revealedCard.style.display = 'none'; // Cacher la vieille carte
+    
+    feedback.innerText = "Ouverture en cours...";
 
     try {
+        // 3. Pendant l'animation, on cherche la carte (2 secondes de délai pour le suspense)
         const randomPage = Math.floor(Math.random() * 50) + 1;
         const req = await fetch(`https://api.pokemontcg.io/v2/cards?page=${randomPage}&pageSize=1`);
         const res = await req.json();
         
+        // Petite pause forcée pour profiter de l'animation (2s)
+        await new Promise(r => setTimeout(r, 2000));
+
         if (res.data && res.data.length > 0) {
             const cardData = res.data[0];
-            const imageUrl = cardData.images.small;
+            const imageUrl = cardData.images.large; // On prend la grande image pour l'anim
+
+            // 4. REVELATION !
+            boosterPack.style.display = 'none'; // Cacher le booster
+            boosterPack.classList.remove('shaking');
             
-            // 1. Ajouter à la liste de sauvegarde
-            myCards.unshift(imageUrl); // Ajoute au début de la liste
+            revealedCard.style.backgroundImage = `url('${imageUrl}')`;
+            revealedCard.style.display = 'block'; // Afficher la carte
             
-            // 2. Créer l'élément visuel
-            createCardElement(imageUrl);
+            // Ajouter à la collection (sauvegarde)
+            myCards.unshift(cardData.images.small);
+            createCardElement(cardData.images.small, true);
+            saveGame();
             
-            feedback.innerText = `Obtenu : ${cardData.name}`;
-            saveGame(); // Sauvegarde la nouvelle carte
+            feedback.innerText = `Tu as eu : ${cardData.name} !`;
+            
         } else {
-            feedback.innerText = "Booster vide (Bug API)";
-            // On rembourse si bug ? Allez, soyons gentils
-            coins += price - 15; 
-            price -= 15;
+            closeOverlay();
+            alert("Erreur: Booster vide !");
         }
 
     } catch (e) {
         console.error(e);
-        feedback.innerText = "Erreur connexion";
-        // Remboursement en cas d'erreur
-        coins += price - 15;
-        price -= 15;
+        closeOverlay();
+        alert("Erreur de connexion !");
     }
+}
+
+function closeOverlay() {
+    overlay.classList.add('hidden');
+    setTimeout(() => {
+        boosterPack.style.display = 'none';
+        revealedCard.style.display = 'none';
+    }, 300);
     updateUI();
 }
 
-// Fonction qui crée juste le visuel (utilisée par Load et Buy)
-function createCardElement(imageUrl) {
+function createCardElement(url, animate) {
     const div = document.createElement('div');
     div.className = 'card';
-    div.style.backgroundImage = `url('${imageUrl}')`;
+    div.style.backgroundImage = `url('${url}')`;
+    if(!animate) div.style.animation = "none"; // Pas d'anim au rechargement de page
     
-    // Si c'est un chargement (pas d'animation souhaitée ? Si, on garde l'anim)
-    // On insère toujours au début (comme myCards.unshift)
-    // Note : Si on charge tout d'un coup, l'ordre sera inversé si on fait append, 
-    // mais comme on boucle sur myCards, l'ordre dépendra de la boucle.
-    // Ici, pour simplifier, on insère avant le premier enfant pour garder l'effet "pile".
-    
-    if (grid.firstChild) {
-        grid.insertBefore(div, grid.firstChild);
-    } else {
-        grid.appendChild(div);
-    }
+    if (grid.firstChild) grid.insertBefore(div, grid.firstChild);
+    else grid.appendChild(div);
 }
 
-// --- DÉMARRAGE ---
-loadGame(); // On lance le chargement au démarrage
+// Démarrage
+loadGame();
