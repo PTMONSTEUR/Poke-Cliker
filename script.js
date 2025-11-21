@@ -10,7 +10,7 @@ const shopBtn = document.getElementById('shop-btn');
 const grid = document.getElementById('grid');
 const feedback = document.getElementById('feedback');
 const pokeballBtn = document.getElementById('pokeball-btn');
-const debugBtn = document.getElementById('debug-btn'); // Bouton Triche
+const debugBtn = document.getElementById('debug-btn');
 
 // Éléments d'animation
 const overlay = document.getElementById('overlay');
@@ -22,14 +22,15 @@ const tapHint = document.getElementById('tap-hint');
 pokeballBtn.addEventListener('click', clickBall);
 shopBtn.addEventListener('click', buyBooster);
 
-// Événement TRICHE
+// TRICHE
 if(debugBtn) {
     debugBtn.addEventListener('click', () => {
-        coins += 10000; // On ajoute 10 000 !
+        coins += 10000; 
         updateUI();
         saveGame();
         feedback.innerText = "TRICHE ACTIVÉE ! 🤑";
         feedback.style.color = "red";
+        setTimeout(() => feedback.style.color = "#666", 2000);
     });
 }
 
@@ -82,7 +83,7 @@ function clickBall() {
     saveGame();
 }
 
-// --- OUVERTURE BOOSTER (VERSION RAPIDE) ---
+// --- OUVERTURE BOOSTER (INSTANTANÉE) ---
 async function buyBooster() {
     if (coins < price) return;
 
@@ -102,18 +103,13 @@ async function buyBooster() {
     feedback.innerText = "Ouverture...";
 
     try {
-        // On lance l'appel réseau MAIS on affiche l'ouverture dès que possible
-        // Astuce : Promise.all permet de faire trembler le booster PENDANT le chargement
-        
+        // ON NE MET PLUS AUCUNE PAUSE ARTIFICIELLE
+        // Le booster s'ouvrira dès que l'internet a récupéré les images
         const randomPage = Math.floor(Math.random() * 100) + 1;
-        
-        // Temps minimal de secousse réduit à 400ms seulement
-        const minShakeTime = new Promise(resolve => setTimeout(resolve, 400));
         
         const [commonReq, rareReq] = await Promise.all([
             fetch(`https://api.pokemontcg.io/v2/cards?page=${randomPage}&pageSize=4`),
-            fetch(`https://api.pokemontcg.io/v2/cards?pageSize=1&q=rarity:"Rare Holo" OR rarity:"Rare Ultra" OR rarity:V OR rarity:VMAX`),
-            minShakeTime // On attend que ce timer finisse aussi
+            fetch(`https://api.pokemontcg.io/v2/cards?pageSize=1&q=rarity:"Rare Holo" OR rarity:"Rare Ultra" OR rarity:V OR rarity:VMAX`)
         ]);
 
         const commonData = await commonReq.json();
@@ -123,11 +119,11 @@ async function buyBooster() {
         if (commonData.data) newCards = [...commonData.data];
         if (rareData.data) newCards.push(rareData.data[0]);
 
-        // POP ! Le booster éclate
+        // BOUM : Ouverture immédiate
         boosterPack.className = 'opening';
         
-        // On attend juste 0.2s le temps de l'anim "opening" du CSS
-        await new Promise(r => setTimeout(r, 200));
+        // Juste 0.1s pour voir l'effet d'explosion
+        await new Promise(r => setTimeout(r, 100));
         boosterPack.style.display = 'none';
 
         if (newCards.length > 0) {
@@ -139,6 +135,7 @@ async function buyBooster() {
     } catch (e) {
         console.error(e);
         closeOverlay();
+        feedback.innerText = "Erreur connexion";
     }
 }
 
@@ -153,7 +150,8 @@ async function displayRevealCards(cardsData) {
         if (isRare) cardEl.classList.add('rare');
         
         cardEl.style.backgroundImage = `url('${imgUrl}')`;
-        // Apparition très rapide (0.1s entre chaque carte)
+        
+        // L'intervalle entre les cartes reste normal (0.1s) pour qu'on les distingue
         cardEl.style.animationDelay = `${i * 0.1}s`; 
 
         revealContainer.appendChild(cardEl);
