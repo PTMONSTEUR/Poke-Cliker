@@ -10,6 +10,7 @@ const shopBtn = document.getElementById('shop-btn');
 const grid = document.getElementById('grid');
 const feedback = document.getElementById('feedback');
 const pokeballBtn = document.getElementById('pokeball-btn');
+const debugBtn = document.getElementById('debug-btn'); // Bouton Triche
 
 // Éléments d'animation
 const overlay = document.getElementById('overlay');
@@ -21,7 +22,17 @@ const tapHint = document.getElementById('tap-hint');
 pokeballBtn.addEventListener('click', clickBall);
 shopBtn.addEventListener('click', buyBooster);
 
-// Clic pour fermer l'overlay une fois fini
+// Événement TRICHE
+if(debugBtn) {
+    debugBtn.addEventListener('click', () => {
+        coins += 10000; // On ajoute 10 000 !
+        updateUI();
+        saveGame();
+        feedback.innerText = "TRICHE ACTIVÉE ! 🤑";
+        feedback.style.color = "red";
+    });
+}
+
 overlay.addEventListener('click', () => {
     if (revealContainer.children.length > 0) {
         closeOverlay();
@@ -41,13 +52,12 @@ function loadGame() {
         coins = data.coins;
         price = data.price;
         myCards = data.cards || [];
-        // Chargement inversé pour garder l'ordre récent en haut
         [...myCards].reverse().forEach(url => createCardElement(url, false)); 
     }
     updateUI();
 }
 
-// --- LOGIQUE ---
+// --- UI ---
 function updateUI() {
     walletEl.innerText = `💰 ${coins}`;
     countEl.innerText = `🃏 ${myCards.length}`;
@@ -72,89 +82,82 @@ function clickBall() {
     saveGame();
 }
 
-// --- SYSTÈME DE BOOSTER COMPLEXE ---
+// --- OUVERTURE BOOSTER (VERSION RAPIDE) ---
 async function buyBooster() {
     if (coins < price) return;
 
-    // 1. Paiement
     coins -= price;
-    price += 15; // Augmente le prix
+    price += 15; 
     updateUI();
     saveGame();
 
-    // 2. Animation d'ouverture (Rapide !)
+    // Animation START
     overlay.classList.remove('hidden');
-    revealContainer.innerHTML = ''; // Vider l'ancienne ouverture
+    revealContainer.innerHTML = '';
     tapHint.style.display = 'none';
     
     boosterPack.style.display = 'flex';
-    boosterPack.className = 'shaking'; // Ça tremble
+    boosterPack.className = 'shaking'; 
     
-    feedback.innerText = "Ouverture du paquet...";
+    feedback.innerText = "Ouverture...";
 
     try {
-        // 3. Récupération des cartes (4 Communes + 1 Rare)
-        // On utilise Promise.all pour faire les 2 demandes en même temps (plus rapide)
+        // On lance l'appel réseau MAIS on affiche l'ouverture dès que possible
+        // Astuce : Promise.all permet de faire trembler le booster PENDANT le chargement
         
         const randomPage = Math.floor(Math.random() * 100) + 1;
         
+        // Temps minimal de secousse réduit à 400ms seulement
+        const minShakeTime = new Promise(resolve => setTimeout(resolve, 400));
+        
         const [commonReq, rareReq] = await Promise.all([
-            // Demande A: 4 cartes "normales"
             fetch(`https://api.pokemontcg.io/v2/cards?page=${randomPage}&pageSize=4`),
-            // Demande B: 1 carte "Rare" (Requête spécifique)
-            fetch(`https://api.pokemontcg.io/v2/cards?pageSize=1&q=rarity:"Rare Holo" OR rarity:"Rare Ultra" OR rarity:V OR rarity:VMAX`)
+            fetch(`https://api.pokemontcg.io/v2/cards?pageSize=1&q=rarity:"Rare Holo" OR rarity:"Rare Ultra" OR rarity:V OR rarity:VMAX`),
+            minShakeTime // On attend que ce timer finisse aussi
         ]);
 
         const commonData = await commonReq.json();
         const rareData = await rareReq.json();
         
-        // On combine les cartes
         let newCards = [];
         if (commonData.data) newCards = [...commonData.data];
-        if (rareData.data) newCards.push(rareData.data[0]); // La rare en dernier
+        if (rareData.data) newCards.push(rareData.data[0]);
 
-        // Pause courte pour l'effet "shaking"
-        await new Promise(r => setTimeout(r, 800));
-
-        // 4. Effet d'ouverture (Pop)
+        // POP ! Le booster éclate
         boosterPack.className = 'opening';
         
-        // Attendre la fin de l'anim d'ouverture (0.4s)
-        await new Promise(r => setTimeout(r, 400));
+        // On attend juste 0.2s le temps de l'anim "opening" du CSS
+        await new Promise(r => setTimeout(r, 200));
         boosterPack.style.display = 'none';
 
-        // 5. Afficher les cartes une par une
         if (newCards.length > 0) {
             displayRevealCards(newCards);
         } else {
-            alert("Erreur API vide");
             closeOverlay();
         }
 
     } catch (e) {
         console.error(e);
-        alert("Erreur de connexion Pokémon !");
         closeOverlay();
     }
 }
 
-// Fonction pour afficher les cartes style "Pocket"
 async function displayRevealCards(cardsData) {
     for (let i = 0; i < cardsData.length; i++) {
         const card = cardsData[i];
-        const imgUrl = card.images.large; // Grande image pour la révélation
-        const isRare = (i === cardsData.length - 1); // La dernière est la rare
+        const imgUrl = card.images.large; 
+        const isRare = (i === cardsData.length - 1); 
 
         const cardEl = document.createElement('div');
         cardEl.className = 'reveal-card-slot';
         if (isRare) cardEl.classList.add('rare');
         
         cardEl.style.backgroundImage = `url('${imgUrl}')`;
-        cardEl.style.animationDelay = `${i * 0.2}s`; // Délai en cascade
+        // Apparition très rapide (0.1s entre chaque carte)
+        cardEl.style.animationDelay = `${i * 0.1}s`; 
 
         revealContainer.appendChild(cardEl);
 
-        // Ajouter à la collection (sauvegarde)
         myCards.unshift(card.images.small);
         createCardElement(card.images.small, true);
     }
@@ -172,12 +175,11 @@ function closeOverlay() {
 function createCardElement(url, isNew) {
     const div = document.createElement('div');
     div.className = 'card';
-    if (isNew) div.classList.add('new'); // Petit badge "New"
+    if (isNew) div.classList.add('new'); 
     div.style.backgroundImage = `url('${url}')`;
     
     if (grid.firstChild) grid.insertBefore(div, grid.firstChild);
     else grid.appendChild(div);
 }
 
-// Démarrage
 loadGame();
