@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PokéClicker TCG</title>
+    <title>PokéClicker TCG - Set Update</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -18,22 +18,35 @@
     <div class="click-zone">
         <button id="pokeball-btn"></button>
         <div id="feedback">Clique pour gagner !</div>
+
+        <div id="booster-selection-zone">
+            <div id="selected-booster-visual" class="booster-mini sv8">
+                <span>SV8</span>
+            </div>
+            
+            <div class="booster-controls">
+                <label>SÉLECTION DU SET :</label>
+                <select id="set-selector">
+                    <option value="sv8">Étincelles Déferlantes (ME2)</option>
+                </select>
+                <div id="set-info">250+ Cartes • Nov 2024</div>
+            </div>
+        </div>
         
         <button id="shop-btn">Chargement...</button>
 
-        <button id="debug-btn" style="margin-top: 30px; background: red; color: white; border: none; padding: 10px; border-radius: 5px; font-weight: bold;">
-            ⚠️ DEBUG: +10 000 💰
+        <button id="debug-btn" style="margin-top: 20px; background: red; color: white; border: none; padding: 5px 10px; border-radius: 5px; font-size: 0.8rem;">
+            ⚠️ TRICHE (+10k)
         </button>
     </div>
 
     <div class="collection-container">
-        <h3 class="collection-title">Ta Collection</h3>
+        <h3 class="collection-title">Ta Collection (Set SV8)</h3>
         <div class="collection-grid" id="grid"></div>
     </div>
 
     <div id="overlay" class="hidden">
         <div id="active-card-container"></div>
-        
         <div id="tap-hint">Touche pour la carte suivante</div>
     </div>
 
