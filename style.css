@@ -78,7 +78,7 @@ header::after {
     transition: 0.3s;
     box-shadow: 0 4px #888;
     max-width: 80%;
-    white-space: pre-wrap; /* Permet le retour à la ligne */
+    white-space: pre-wrap;
 }
 #shop-btn.active {
     background-color: #3b4cca;
@@ -117,7 +117,6 @@ header::after {
     animation: popIn 0.3s ease-out;
     position: relative;
 }
-/* Petit badge "NEW" sur les nouvelles cartes */
 .card.new::after {
     content: 'NEW';
     position: absolute;
@@ -129,11 +128,11 @@ header::after {
 
 @keyframes popIn { from { transform: scale(0); } to { transform: scale(1); } }
 
-/* --- ANIMATION OVERLAY (Le Booster) --- */
+/* --- NOUVEL OVERLAY (FOCUS CARTE UNIQUE) --- */
 #overlay {
     position: fixed;
     top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.95); /* Fond très sombre */
+    background: rgba(0,0,0,0.95);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -143,96 +142,64 @@ header::after {
 }
 .hidden { opacity: 0; pointer-events: none; }
 
-#booster-pack {
-    width: 220px;
-    height: 320px;
-    /* Effet foil métallique avec des rayures */
-    background: repeating-linear-gradient(
-        120deg,
-        #1a2a8a,
-        #1a2a8a 20px,
-        #3b4cca 20px,
-        #3b4cca 40px,
-        #ffcb05 40px,
-        #ffcb05 45px
-    );
-    border: 4px solid white;
-    border-radius: 15px;
-    box-shadow: 0 0 40px rgba(255, 255, 255, 0.5);
-    display: none;
-    position: relative;
+/* Conteneur pour centrer la carte */
+#active-card-container {
+    width: 100%;
+    height: 70%;
+    display: flex;
     align-items: center;
     justify-content: center;
+    perspective: 1000px;
 }
 
-.booster-design {
-    background: white;
-    padding: 10px 20px;
-    font-weight: 900;
-    font-size: 1.5rem;
-    transform: rotate(-5deg);
-    border: 2px solid black;
-    box-shadow: 5px 5px 0 black;
-}
-
-#booster-pack.shaking {
-    display: flex;
-    animation: shake 0.1s infinite;
-}
-#booster-pack.opening {
-    /* Ouverture très rapide (0.15s) */
-    animation: ripOpen 0.15s forwards; 
-}
-
-/* Conteneur des cartes révélées */
-#reveal-container {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 15px;
-    width: 100%;
-    max-width: 400px;
-}
-
-.reveal-card-slot {
-    width: 90px;
-    height: 125px;
+/* La carte en grand format */
+.large-reveal-card {
+    width: 260px;  /* Beaucoup plus grand */
+    height: 360px;
+    background-color: #222;
     background-size: cover;
-    border-radius: 8px;
-    box-shadow: 0 0 15px rgba(255,215,0,0.5);
-    transform: scale(0);
-    animation: dealCard 0.3s ease-out forwards; 
+    background-position: center;
+    border-radius: 15px;
+    box-shadow: 0 0 40px rgba(255, 255, 255, 0.3);
+    cursor: pointer;
+    position: relative;
+    
+    /* Animation d'arrivée (zoom) */
+    animation: cardEnter 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
 
-/* La carte Rare est plus grande et dorée */
-.reveal-card-slot.rare {
-    width: 120px;
-    height: 165px;
-    border: 2px solid gold;
-    box-shadow: 0 0 30px gold;
-    z-index: 10;
-    order: 10;
+/* Bordure dorée pour la Rare */
+.large-reveal-card.rare {
+    border: 3px solid gold;
+    box-shadow: 0 0 60px gold;
+}
+
+/* Animation quand on clique (part vers le haut) */
+.large-reveal-card.slide-up {
+    animation: slideUp 0.4s ease-in forwards;
 }
 
 #tap-hint {
-    color: white; margin-top: 20px; font-size: 0.8rem; opacity: 0.7;
-    display: none;
+    color: white;
+    margin-top: 20px;
+    font-size: 1rem;
+    opacity: 0.8;
+    animation: pulse 1.5s infinite;
 }
 
-/* --- DEFINITION DES ANIMATIONS --- */
-@keyframes shake {
-    0% { transform: rotate(1deg); }
-    50% { transform: rotate(-1deg); }
-    100% { transform: rotate(1deg); }
-}
-
-@keyframes ripOpen {
-    0% { transform: scale(1); opacity: 1; }
-    50% { transform: scale(1.2); opacity: 0.8; }
-    100% { transform: scale(1.5); opacity: 0; }
-}
-
-@keyframes dealCard {
-    from { transform: scale(0) translateY(50px); opacity: 0; }
+/* --- DEFINITION ANIMATIONS --- */
+@keyframes cardEnter {
+    from { transform: scale(0.5) translateY(50px); opacity: 0; }
     to { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+@keyframes slideUp {
+    0% { transform: translateY(0) scale(1); opacity: 1; }
+    100% { transform: translateY(-120vh) scale(0.8); opacity: 0; }
+}
+
+@keyframes pulse {
+    0% { opacity: 0.5; }
+    50% { opacity: 1; }
+    100% { opacity: 0.5; }
 }
