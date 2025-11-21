@@ -1,9 +1,13 @@
-// --- VARIABLES DU JEU ---
+// --- VARIABLES ---
 let coins = 0;
 let price = 50;
-let myCards = []; // Stockage de la collection
+let myCards = []; // Ta collection
 
-// --- RÉCUPÉRATION DES ÉLÉMENTS HTML ---
+// Variables temporaires pour l'ouverture
+let cardsToReveal = []; 
+let currentCardIndex = 0;
+
+// --- ÉLÉMENTS HTML ---
 const walletEl = document.getElementById('wallet');
 const countEl = document.getElementById('count');
 const shopBtn = document.getElementById('shop-btn');
@@ -12,39 +16,28 @@ const feedback = document.getElementById('feedback');
 const pokeballBtn = document.getElementById('pokeball-btn');
 const debugBtn = document.getElementById('debug-btn');
 
-// Éléments d'animation (Overlay & Booster)
+// Zone d'animation
 const overlay = document.getElementById('overlay');
-const boosterPack = document.getElementById('booster-pack');
-const revealContainer = document.getElementById('reveal-container');
+const activeCardContainer = document.getElementById('active-card-container');
 const tapHint = document.getElementById('tap-hint');
 
-// --- ÉCOUTEURS D'ÉVÉNEMENTS ---
+// --- EVENTS ---
 pokeballBtn.addEventListener('click', clickBall);
 shopBtn.addEventListener('click', buyBooster);
 
-// --- FONCTION DE TRICHE (DEBUG) ---
+// Debug / Triche
 if(debugBtn) {
     debugBtn.addEventListener('click', () => {
-        coins += 10000; 
+        coins += 10000;
         updateUI();
         saveGame();
-        
         feedback.innerText = "TRICHE ACTIVÉE ! 🤑";
         feedback.style.color = "red";
-        
-        // Remet la couleur normale après 2 secondes
         setTimeout(() => feedback.style.color = "#666", 2000);
     });
 }
 
-// Fermer l'overlay quand on clique dessus (si le booster est ouvert)
-overlay.addEventListener('click', () => {
-    if (revealContainer.children.length > 0) {
-        closeOverlay();
-    }
-});
-
-// --- SYSTÈME DE SAUVEGARDE ---
+// --- SAUVEGARDE ---
 function saveGame() {
     const data = { coins, price, cards: myCards };
     localStorage.setItem('pokeClickerSave', JSON.stringify(data));
@@ -57,19 +50,16 @@ function loadGame() {
         coins = data.coins;
         price = data.price;
         myCards = data.cards || [];
-        
-        // On affiche les cartes (inversé pour voir les plus récentes en haut)
-        [...myCards].reverse().forEach(url => createCardElement(url, false)); 
+        [...myCards].reverse().forEach(url => createCardElement(url, false));
     }
     updateUI();
 }
 
-// --- INTERFACE UTILISATEUR (UI) ---
+// --- UI ---
 function updateUI() {
     walletEl.innerText = `💰 ${coins}`;
     countEl.innerText = `🃏 ${myCards.length}`;
     
-    // Gestion du bouton d'achat
     if (coins >= price) {
         shopBtn.classList.add('active');
         shopBtn.innerText = `OUVRIR BOOSTER\n(5 Cartes - ${price} 💰)`;
@@ -80,131 +70,128 @@ function updateUI() {
     }
 }
 
-// --- CLIC SUR LA POKÉBALL ---
 function clickBall() {
-    const gain = Math.floor(Math.random() * 3) + 1; // Gain entre 1 et 3
+    const gain = Math.floor(Math.random() * 3) + 1;
     coins += gain;
-    
     feedback.style.color = '#3b4cca';
     feedback.innerText = `+${gain}`;
-    
-    // Efface le message après 0.5s
     setTimeout(() => feedback.innerText = "Clique !", 500);
-    
     updateUI();
     saveGame();
 }
 
-// --- OUVERTURE DE BOOSTER (LOGIQUE PRINCIPALE) ---
+// --- OUVERTURE BOOSTER (NOUVELLE LOGIQUE) ---
 async function buyBooster() {
     if (coins < price) return;
 
-    // 1. Paiement
+    // 1. Payer
     coins -= price;
-    price += 15; // Inflation
+    price += 15;
     updateUI();
     saveGame();
 
-    // 2. Initialisation de l'animation
-    overlay.classList.remove('hidden');
-    revealContainer.innerHTML = ''; // Vide l'ancienne ouverture
-    tapHint.style.display = 'none';
-    
-    boosterPack.style.display = 'flex';
-    boosterPack.className = 'shaking'; // Le booster tremble
-    
-    feedback.innerText = "Connexion au réseau Pokémon...";
+    shopBtn.innerText = "Recherche des cartes...";
+    shopBtn.classList.remove('active');
 
     try {
-        // 3. Appel API (Double requête pour garantir une rare à la fin)
+        // 2. Récupérer les 5 cartes (4 communes + 1 rare)
         const randomPage = Math.floor(Math.random() * 100) + 1;
         
-        // On lance les deux requêtes en parallèle pour aller plus vite
         const [commonReq, rareReq] = await Promise.all([
-            // 4 cartes communes/peu communes
             fetch(`https://api.pokemontcg.io/v2/cards?page=${randomPage}&pageSize=4`),
-            // 1 carte Rare (Holo, V, VMAX, etc.)
             fetch(`https://api.pokemontcg.io/v2/cards?pageSize=1&q=rarity:"Rare Holo" OR rarity:"Rare Ultra" OR rarity:V OR rarity:VMAX`)
         ]);
 
         const commonData = await commonReq.json();
         const rareData = await rareReq.json();
         
-        // On fusionne les résultats
-        let newCards = [];
-        if (commonData.data) newCards = [...commonData.data];
-        if (rareData.data) newCards.push(rareData.data[0]);
+        let newPack = [];
+        if (commonData.data) newPack = [...commonData.data];
+        if (rareData.data) newPack.push(rareData.data[0]);
 
-        // 4. BOUM ! Ouverture immédiate dès que les données sont là
-        boosterPack.className = 'opening'; // Animation d'éclatement
-        
-        // On attend juste 0.15s pour voir l'éclatement
-        await new Promise(r => setTimeout(r, 150));
-        boosterPack.style.display = 'none';
-
-        // 5. Affichage des cartes
-        if (newCards.length > 0) {
-            displayRevealCards(newCards);
+        if (newPack.length > 0) {
+            // 3. Lancer la session de révélation
+            startRevealSession(newPack);
         } else {
-            closeOverlay(); // Sécurité si l'API échoue
+            alert("Erreur: Paquet vide");
         }
 
     } catch (e) {
         console.error(e);
-        closeOverlay();
-        feedback.innerText = "Erreur de connexion internet";
-        alert("Impossible de contacter le serveur Pokémon !");
+        feedback.innerText = "Erreur réseau";
+        updateUI(); // Remet le bouton normal
     }
 }
 
-// Fonction qui affiche les cartes "révélées" au centre de l'écran
-async function displayRevealCards(cardsData) {
-    for (let i = 0; i < cardsData.length; i++) {
-        const card = cardsData[i];
-        const imgUrl = card.images.large; // Grande image HD
-        const isRare = (i === cardsData.length - 1); // La dernière est la rare
-
-        const cardEl = document.createElement('div');
-        cardEl.className = 'reveal-card-slot';
-        if (isRare) cardEl.classList.add('rare');
-        
-        cardEl.style.backgroundImage = `url('${imgUrl}')`;
-        
-        // Délai d'apparition en cascade (0.1s entre chaque carte)
-        cardEl.style.animationDelay = `${i * 0.1}s`; 
-
-        revealContainer.appendChild(cardEl);
-
-        // Ajout à la collection (sauvegarde)
-        myCards.unshift(card.images.small);
-        createCardElement(card.images.small, true);
-    }
+// --- GESTION DE LA RÉVÉLATION (UNE PAR UNE) ---
+function startRevealSession(cards) {
+    cardsToReveal = cards;
+    currentCardIndex = 0;
     
-    saveGame();
-    tapHint.style.display = 'block'; // Affiche "Touche pour fermer"
-    feedback.innerText = "Booster ouvert !";
+    // Ouvrir l'overlay
+    overlay.classList.remove('hidden');
+    activeCardContainer.innerHTML = ''; // Nettoyer
+    tapHint.innerText = "Touche la carte pour voir la suivante";
+    
+    // Afficher la première carte
+    showNextCard();
 }
 
-// Fermer l'écran d'ouverture
+function showNextCard() {
+    // Si on a tout montré, on ferme
+    if (currentCardIndex >= cardsToReveal.length) {
+        closeOverlay();
+        feedback.innerText = "Toutes les cartes collectées !";
+        return;
+    }
+
+    const cardData = cardsToReveal[currentCardIndex];
+    const isRare = (currentCardIndex === cardsToReveal.length - 1); // La dernière est rare
+
+    // Créer l'élément visuel GRANDE carte
+    const cardEl = document.createElement('div');
+    cardEl.className = 'large-reveal-card';
+    if (isRare) cardEl.classList.add('rare');
+    
+    // On utilise l'image HD pour le gros plan
+    cardEl.style.backgroundImage = `url('${cardData.images.large}')`;
+
+    // Événement : Quand on clique sur la carte
+    cardEl.onclick = function() {
+        // 1. Animation de sortie (vers le haut)
+        cardEl.classList.add('slide-up');
+        
+        // 2. Ajouter la carte à la collection (sauvegarde)
+        myCards.unshift(cardData.images.small);
+        createCardElement(cardData.images.small, true);
+        saveGame();
+
+        // 3. Attendre la fin de l'anim (0.4s) puis passer à la suivante
+        setTimeout(() => {
+            activeCardContainer.removeChild(cardEl); // Supprimer l'ancienne
+            currentCardIndex++; // Passer à la suivante
+            showNextCard(); // Afficher la suivante
+        }, 350); 
+    };
+
+    activeCardContainer.appendChild(cardEl);
+}
+
 function closeOverlay() {
     overlay.classList.add('hidden');
     updateUI();
 }
 
-// Créer l'élément visuel dans la collection (en bas)
+// Création visuelle dans la collection (en bas)
 function createCardElement(url, isNew) {
     const div = document.createElement('div');
     div.className = 'card';
-    if (isNew) div.classList.add('new'); // Badge "NEW"
+    if (isNew) div.classList.add('new');
     div.style.backgroundImage = `url('${url}')`;
     
-    // Ajout au début de la grille
-    if (grid.firstChild) {
-        grid.insertBefore(div, grid.firstChild);
-    } else {
-        grid.appendChild(div);
-    }
+    if (grid.firstChild) grid.insertBefore(div, grid.firstChild);
+    else grid.appendChild(div);
 }
 
-// --- LANCEMENT DU JEU ---
+// Lancer le jeu
 loadGame();
