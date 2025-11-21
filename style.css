@@ -1,4 +1,4 @@
-/* --- DESIGN RESPONSIVE --- */
+/* --- BASE --- */
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     background-color: #f4f4f4;
@@ -10,18 +10,13 @@ body {
     color: #333;
 }
 
-/* Header style Pokeball */
+/* --- HEADER & SCORE --- */
 header {
     background: linear-gradient(to bottom, #cc0000 50%, #333 50%, #333 55%, white 55%);
     height: 60px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
     position: relative;
-    z-index: 10;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
 }
-
 header::after {
     content: '';
     width: 30px;
@@ -30,25 +25,22 @@ header::after {
     border: 4px solid #333;
     border-radius: 50%;
     position: absolute;
-    top: 50%;
-    left: 50%;
+    top: 50%; left: 50%;
     transform: translate(-50%, -50%);
 }
 
-/* Score */
 .scoreboard {
     background: #fff;
     padding: 15px;
     text-align: center;
     font-weight: 800;
     font-size: 1.2rem;
-    color: #333;
     border-bottom: 1px solid #ddd;
     display: flex;
     justify-content: space-around;
 }
 
-/* Zone de jeu */
+/* --- JEU --- */
 .click-zone {
     flex: 1;
     display: flex;
@@ -58,7 +50,6 @@ header::after {
     background: #eef;
 }
 
-/* La Pokéball centrale */
 #pokeball-btn {
     width: 160px;
     height: 160px;
@@ -68,13 +59,12 @@ header::after {
     background-color: transparent;
     cursor: pointer;
     transition: transform 0.1s;
-    filter: drop-shadow(0 5px 10px rgba(0,0,0,0.3));
     -webkit-tap-highlight-color: transparent;
 }
-
 #pokeball-btn:active { transform: scale(0.90) rotate(10deg); }
 
-/* Bouton Boutique */
+#feedback { height: 20px; color: #666; margin-top: 10px; font-weight: bold; }
+
 #shop-btn {
     margin-top: 20px;
     padding: 15px 30px;
@@ -85,20 +75,18 @@ header::after {
     color: white;
     font-weight: bold;
     pointer-events: none;
-    transition: all 0.3s;
+    transition: 0.3s;
     box-shadow: 0 4px #888;
 }
-
 #shop-btn.active {
     background-color: #3b4cca;
     cursor: pointer;
     pointer-events: all;
     box-shadow: 0 4px #1a2a8a;
 }
-
 #shop-btn.active:active { transform: translateY(4px); box-shadow: none; }
 
-/* Zone Collection */
+/* --- COLLECTION --- */
 .collection-container {
     height: 45%;
     background-color: #222;
@@ -107,7 +95,6 @@ header::after {
     -webkit-overflow-scrolling: touch;
     border-top: 5px solid #ffcb05;
 }
-
 .collection-grid {
     display: flex;
     flex-wrap: wrap;
@@ -115,18 +102,8 @@ header::after {
     gap: 10px;
     padding-bottom: 50px;
 }
+.collection-title { color: white; text-align: center; margin: 0 0 10px 0; text-transform: uppercase; }
 
-.collection-title {
-    color: white;
-    text-align: center;
-    margin-top: 0;
-    margin-bottom: 10px;
-    font-size: 0.9rem;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-}
-
-/* Cartes */
 .card {
     width: 90px;
     height: 125px;
@@ -135,12 +112,59 @@ header::after {
     background-size: cover;
     background-position: center;
     box-shadow: 0 2px 5px #000;
-    animation: slideUp 0.5s ease-out;
+    animation: popIn 0.3s ease-out;
+}
+@keyframes popIn { from { transform: scale(0); } to { transform: scale(1); } }
+
+/* --- ANIMATION OVERLAY (NOUVEAU) --- */
+#overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.9);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    transition: opacity 0.3s;
+}
+.hidden { opacity: 0; pointer-events: none; }
+
+/* Le paquet de cartes */
+#booster-pack {
+    width: 200px;
+    height: 300px;
+    background: linear-gradient(45deg, #3b4cca, #ffcb05);
+    border: 5px solid white;
+    border-radius: 15px;
+    box-shadow: 0 0 30px white;
+    display: none; /* Caché par défaut */
+}
+#booster-pack.shaking {
+    display: block;
+    animation: shake 0.5s infinite;
 }
 
-@keyframes slideUp {
-    from { transform: translateY(20px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
+/* La carte révélée en grand */
+#revealed-card {
+    width: 240px;
+    height: 330px;
+    background-size: cover;
+    border-radius: 15px;
+    box-shadow: 0 0 50px gold;
+    display: none;
+    animation: reveal 1s ease-out;
 }
 
-#feedback { height: 20px; color: #666; margin-top: 10px; font-size: 0.8rem; font-weight: bold;}
+@keyframes shake {
+    0% { transform: rotate(0deg); }
+    25% { transform: rotate(5deg); }
+    50% { transform: rotate(0eg); }
+    75% { transform: rotate(-5deg); }
+    100% { transform: rotate(0deg); }
+}
+
+@keyframes reveal {
+    0% { transform: scale(0) rotate(360deg); }
+    100% { transform: scale(1) rotate(0deg); }
+}
